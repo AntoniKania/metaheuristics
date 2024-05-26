@@ -8,6 +8,7 @@ namespace mhe {
     std::mt19937 rdgen(rd());
 
     using adjacency_matrix_t = std::vector<char>;
+    using subgraph_t = std::vector<char>;
 
     int count_nodes_in_graph(const adjacency_matrix_t &graph) {
         return static_cast<int>(sqrt(static_cast<int>(graph.size()) * 8 + 1) + 1) / 2;
@@ -38,6 +39,64 @@ namespace mhe {
         for (auto &e : adjacency_matrix) e = dist(rdgen);
         return adjacency_matrix;
     }
+
+    subgraph_t generate_random_subgraph(const adjacency_matrix_t &problem) {
+        int node_count = count_nodes_in_graph(problem);
+        subgraph_t subgraph = subgraph_t(node_count);
+        std::uniform_int_distribution<char> dist(0, 1);
+        for (auto &node : subgraph) node = dist(rdgen);
+        return subgraph;
+    }
+
+    subgraph_t generate_first_packing(const adjacency_matrix_t &problem) {
+        subgraph_t subgraph(count_nodes_in_graph(problem));
+        return subgraph;
+    }
+
+    subgraph_t generate_next_solution(subgraph_t subgraph) {
+        for (int i = 0; i < subgraph.size(); i++) {
+            if (subgraph[i] == 0) {
+                subgraph[i] = 1;
+                return subgraph;
+            }
+            subgraph[i] = 0;
+        }
+        return subgraph;
+    }
+
+    std::function<int(const subgraph_t &)> goal_factory(const adjacency_matrix_t &problem) {
+        return [=](const subgraph_t &subgraph) {
+            if (subgraph.size() != count_nodes_in_graph(problem)) throw std::invalid_argument("Bad subgraph size!");
+            int score = 0;
+            for (char i : subgraph) {
+                if (i == 1) {
+                    score++;
+                } else {
+                    score -= 100;
+                }
+            }
+            return score;
+        };
+    }
+
+    subgraph_t solve(const adjacency_matrix_t &problem) {
+        auto packing = generate_first_packing(problem);
+        auto goal = goal_factory(problem);
+        auto best_goal_value = goal(packing);
+        auto best_solution = packing;
+        while (true) {
+            packing = generate_next_solution(packing);
+            double next_goal_value = goal(packing);
+            if (next_goal_value > best_goal_value) {
+                best_goal_value = next_goal_value;
+                best_solution = packing;
+            }
+            int s = 0;
+            for (auto e : packing) s += e;
+            if (s == 0) break;
+        }
+        return best_solution;
+    }
 }
 
 int main() {
@@ -51,6 +110,8 @@ int main() {
     };
 
     generate_graphviz_output(generate_random_graph(8));
+
+    auto solution = solve(graph);
 
     return 0;
 }
