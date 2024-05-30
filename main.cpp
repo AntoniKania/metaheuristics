@@ -2,6 +2,7 @@
 #include <vector>
 #include <random>
 #include <functional>
+#include <algorithm>
 
 namespace mhe {
     std::random_device rd;
@@ -9,6 +10,13 @@ namespace mhe {
 
     using adjacency_matrix_t = std::vector<char>;
     using subgraph_t = std::vector<char>;
+
+    std::ostream & operator<<(std::ostream &o, const subgraph_t &p) {
+        for (auto &e: p) {
+            o << ((e == 0) ? "0" : "1");
+        }
+        return o;
+    }
 
     // LLM: I have a formula: E = n(n-1)/2. How can I transform it to calculate n?
     int count_nodes_in_graph(const adjacency_matrix_t &graph) {
@@ -43,7 +51,7 @@ namespace mhe {
     }
 
     adjacency_matrix_t generate_random_graph(const int &num_nodes) {
-        int adjacency_matrix_size = num_nodes * (num_nodes - 1) / 2;
+        int adjacency_matrix_size = num_nodes * (num_nodes - 1) / 2; // upper triangle, self connections skipped
         adjacency_matrix_t adjacency_matrix(adjacency_matrix_size);
         std::uniform_int_distribution<char> dist(0, 1);
         for (auto &e : adjacency_matrix) e = dist(rdgen);
@@ -74,6 +82,16 @@ namespace mhe {
         return subgraph;
     }
 
+    std::vector<subgraph_t> generate_neighbor_solutions(const subgraph_t & subgraph) {
+        std::vector<subgraph_t> result;
+        for (int i = 0; i < subgraph.size(); i++) {
+            auto modified = subgraph;
+            modified[i] = 1 - modified[i];
+            result.push_back(modified);
+        }
+        return result;
+    }
+
     adjacency_matrix_t create_subgraph_adjacency_matrix(const subgraph_t &subgraph, const adjacency_matrix_t &problem) {
         adjacency_matrix_t subgraph_adjacency_matrix;
         for (int node_y = 1; node_y < subgraph.size(); node_y++) {
@@ -81,7 +99,7 @@ namespace mhe {
                 continue; // skipping excluded nodes
             }
             for (int node_x = node_y + 1; node_x <= subgraph.size(); node_x++) {
-                if (subgraph.at(node_x - 1) == 0) { // +1 as self edges were removed from matrix, and it's shifted by +1 on x-axis
+                if (subgraph.at(node_x - 1) == 0) { // -1 to get the index in array
                     continue; // skipping excluded nodes
                 }
                 int array_index = get_index_in_adjacency_matrix(node_y, node_x, problem);
@@ -108,20 +126,43 @@ namespace mhe {
     }
 
     subgraph_t solve(const adjacency_matrix_t &problem) {
-        auto packing = generate_first_subgraph(problem);
+        auto subgraph = generate_first_subgraph(problem);
         auto goal = goal_factory(problem);
-        auto best_goal_value = goal(packing);
-        auto best_solution = packing;
+        auto best_goal_value = goal(subgraph);
+        auto best_solution = subgraph;
         while (true) {
-            packing = generate_next_solution(packing);
-            double next_goal_value = goal(packing);
+            subgraph = generate_next_solution(subgraph);
+            double next_goal_value = goal(subgraph);
             if (next_goal_value > best_goal_value) {
                 best_goal_value = next_goal_value;
-                best_solution = packing;
+                best_solution = subgraph;
             }
             int s = 0;
-            for (auto e : packing) s += e;
+            for (auto e : subgraph) s += e;
             if (s == 0) break;
+        }
+        return best_solution;
+    }
+
+    subgraph_t solve_hill_climbing(const adjacency_matrix_t &problem) {
+        auto subgraph = generate_random_subgraph(problem);
+        auto goal = goal_factory(problem);
+        auto best_goal_value = goal(subgraph);
+        auto best_solution = subgraph;
+        for (int i = 0; i < 5; i++) {
+            auto subgraphs = generate_neighbor_solutions(subgraph);
+            subgraph = *std::max_element(subgraphs.begin(), subgraphs.end(),
+                                         [=](auto a, auto b) {
+                                            return goal(a) < goal(b);
+                                        });
+            double next_goal_value = goal(subgraph);
+            if (next_goal_value > best_goal_value) {
+                best_goal_value = next_goal_value;
+                best_solution = subgraph;
+                std::cout << " --> " << subgraph << " -> " <<  best_goal_value;
+                std::cout << "  BEST! ";
+                std::cout << std::endl;
+            }
         }
         return best_solution;
     }
@@ -131,15 +172,18 @@ int main() {
     using namespace mhe;
     adjacency_matrix_t graph = {
             1,1,1,1,1,
-            1,1,1,1,
+            1,0,1,1,
             1,1,1,
-            1,1,
-            1
+            0,0,
+            0
     };
     generate_graphviz_output(graph);
 
-//    generate_graphviz_output(generate_random_graph(8));
     auto solution = solve(graph);
+    auto solution2 = solve_hill_climbing(graph);
+
+    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution2, graph);
+    generate_graphviz_output(matrix);
 
     return 0;
 }
