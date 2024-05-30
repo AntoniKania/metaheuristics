@@ -60,11 +60,11 @@ namespace mhe {
         return adjacency_matrix;
     }
 
-    subgraph_t generate_random_subgraph(const adjacency_matrix_t &problem) {
+    subgraph_t generate_random_subgraph(const adjacency_matrix_t &problem, double p_1 = 0.5) {
         int node_count = count_nodes_in_graph(problem);
         subgraph_t subgraph = subgraph_t(node_count);
-        std::uniform_int_distribution<char> dist(0, 1);
-        for (auto &node : subgraph) node = dist(rdgen);
+        std::uniform_real_distribution<double> dist(0.0,1.0);
+        for (auto &e : subgraph) e = (dist(rdgen) < p_1) ? 1 : 0;
         return subgraph;
     }
 
@@ -144,6 +144,23 @@ namespace mhe {
             if (s == 0) break;
         }
         return best_solution;
+    }
+
+    subgraph_t solve_random(const adjacency_matrix_t &problem, int iterations = 20, double p_1 = 0.5) {
+        using namespace std;
+        auto packing = generate_random_subgraph(problem, p_1);
+        auto goal = goal_factory(problem);
+
+        for ( int i = 0; i <  iterations; i++) {
+            auto t = generate_random_subgraph(problem, p_1);
+            if (goal(t) >= goal(packing) ) {
+                packing = t;
+                std::cout << " --> " << packing << " -> " << goal(packing);
+                std::cout << "  BEST! ";
+                std::cout << std::endl;
+            }
+        }
+        return packing;
     }
 
     subgraph_t solve_hill_climbing(const adjacency_matrix_t &problem, int iterations = 20) {
@@ -323,14 +340,15 @@ int main() {
 
 //    auto solution = solve(enormous_graph);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
-    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 1000);
+//    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 10000);
+    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
 
 //    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
 //    generate_graphviz_output(matrix);
-//    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_hill_climbing, enormous_graph);
-//    generate_graphviz_output(matrix2);
-    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
-    generate_graphviz_output(matrix3);
+    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
+    generate_graphviz_output(matrix2);
+//    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
+//    generate_graphviz_output(matrix3);
 
     return 0;
 }
