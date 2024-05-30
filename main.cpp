@@ -3,6 +3,8 @@
 #include <random>
 #include <functional>
 #include <algorithm>
+#include <list>
+#include <set>
 
 namespace mhe {
     std::random_device rd;
@@ -144,12 +146,12 @@ namespace mhe {
         return best_solution;
     }
 
-    subgraph_t solve_hill_climbing(const adjacency_matrix_t &problem) {
+    subgraph_t solve_hill_climbing(const adjacency_matrix_t &problem, int iterations = 20) {
         auto subgraph = generate_random_subgraph(problem);
         auto goal = goal_factory(problem);
         auto best_goal_value = goal(subgraph);
         auto best_solution = subgraph;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < iterations; i++) {
             auto subgraphs = generate_neighbor_solutions(subgraph);
             subgraph = *std::max_element(subgraphs.begin(), subgraphs.end(),
                                          [=](auto a, auto b) {
@@ -166,24 +168,169 @@ namespace mhe {
         }
         return best_solution;
     }
+
+    subgraph_t solve_tabu_set(const adjacency_matrix_t &problem, int iterations = 20, int tabu_size = 1000) {
+        auto subgraph = generate_random_subgraph(problem);
+        auto best_subgraph = subgraph;
+        auto goal = goal_factory(problem);
+
+        std::list<subgraph_t> tabu_list = {subgraph};
+        std::set<subgraph_t> tabu = {subgraph};
+
+        auto is_in_tabu = [&](subgraph_t &elem) -> bool {
+            return tabu.find(elem) != tabu.end() ;
+        };
+
+        for (int i = 0; i <  iterations; i++) {
+            std::vector<subgraph_t> subgraphs;
+            for (auto p: generate_neighbor_solutions(subgraph)) {
+                if (!is_in_tabu(p)) subgraphs.push_back(p);
+            }
+
+            if (subgraphs.empty()) {
+                std::cout << "  TABU IS EMPTY!!!!!!!!! ";
+                std::cout << std::endl;
+            }
+
+            auto subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
+                                                   [=](auto a, auto b)
+                                                  {
+                                                      return goal(a) < goal(b);
+                                                  });
+            subgraph = subgraph_next;
+
+            if (goal(subgraph) > goal(best_subgraph)) {
+                best_subgraph = subgraph;
+                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                std::cout << "  BEST! ";
+                std::cout << std::endl;
+            }
+            tabu_list.push_back(subgraph);
+            tabu.insert(subgraph);
+            if (tabu.size() > tabu_size) {
+                tabu.erase(tabu_list.front());
+                tabu_list.pop_front();
+            }
+
+        }
+        return best_subgraph;
+    }
+
+    subgraph_t solve_tabu_list(const adjacency_matrix_t &problem, int iterations = 20, int tabu_size = 1000) {
+        auto subgraph = generate_random_subgraph(problem);
+        auto best_subgraph = subgraph;
+        auto goal = goal_factory(problem);
+
+        std::list<subgraph_t> tabu_list = {subgraph};
+
+        auto is_in_tabu = [&](subgraph_t &elem) -> bool {
+            return std::find(tabu_list.begin(), tabu_list.end(),elem) != tabu_list.end();
+        };
+
+        for (int i = 0; i <  iterations; i++) {
+            std::vector<subgraph_t> subgraphs;
+            for (auto p: generate_neighbor_solutions(subgraph)) {
+                if (!is_in_tabu(p)) subgraphs.push_back(p);
+            }
+
+            if (subgraphs.empty()) {
+
+            }
+
+            auto subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
+                                                   [=](auto a, auto b)
+                                                   {
+                                                       return goal(a) < goal(b);
+                                                   });
+            subgraph = subgraph_next;
+
+            if (goal(subgraph) > goal(best_subgraph)) {
+                best_subgraph = subgraph;
+                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                std::cout << "  BEST! ";
+                std::cout << std::endl;
+            }
+            tabu_list.push_back(subgraph);
+            if (tabu_list.size() > tabu_size) {
+                tabu_list.pop_front();
+            }
+
+        }
+        return best_subgraph;
+    }
+
+    subgraph_t solve_tabu_avoid_snake(const adjacency_matrix_t &problem, int iterations = 20, int tabu_size = 1000) {
+        auto subgraph = generate_random_subgraph(problem);
+        auto best_subgraph = subgraph;
+        auto goal = goal_factory(problem);
+
+        std::list<subgraph_t> last_visited_list = {subgraph};
+        std::set<subgraph_t> tabu = {subgraph};
+
+        auto is_in_tabu = [&](subgraph_t &elem) -> bool {
+            return tabu.find(elem) != tabu.end() ;
+        };
+
+        for (int i = 0; i <  iterations; i++) {
+            std::vector<subgraph_t> subgraphs;
+            subgraph_t subgraph_next;
+            for (auto p: generate_neighbor_solutions(subgraph)) {
+                if (!is_in_tabu(p)) subgraphs.push_back(p);
+            }
+
+            if (subgraphs.empty()) {
+                subgraph_next = last_visited_list.back();
+                last_visited_list.pop_back();
+            } else {
+                subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
+                                                  [=](auto a, auto b)
+                                                  {
+                                                      return goal(a) < goal(b);
+                                                  });
+            }
+            subgraph = subgraph_next;
+
+            if (goal(subgraph) > goal(best_subgraph)) {
+                best_subgraph = subgraph;
+                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                std::cout << "  BEST! ";
+                std::cout << std::endl;
+            }
+            last_visited_list.push_back(subgraph);
+            tabu.insert(subgraph);
+            if (tabu.size() > tabu_size) {
+                tabu.erase(last_visited_list.front());
+                last_visited_list.pop_front();
+            }
+
+        }
+        return best_subgraph;
+    }
 }
 
 int main() {
     using namespace mhe;
-    adjacency_matrix_t graph = {
+    adjacency_matrix_t example_graph = {
             1,1,1,1,1,
             1,0,1,1,
             1,1,1,
             0,0,
             0
     };
-    generate_graphviz_output(graph);
 
-    auto solution = solve(graph);
-    auto solution2 = solve_hill_climbing(graph);
+    auto enormous_graph = generate_random_graph(100);
+    generate_graphviz_output(enormous_graph);
 
-    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution2, graph);
-    generate_graphviz_output(matrix);
+//    auto solution = solve(enormous_graph);
+//    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
+    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 1000);
+
+//    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
+//    generate_graphviz_output(matrix);
+//    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_hill_climbing, enormous_graph);
+//    generate_graphviz_output(matrix2);
+    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
+    generate_graphviz_output(matrix3);
 
     return 0;
 }
