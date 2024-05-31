@@ -114,6 +114,20 @@ namespace mhe {
         return result;
     }
 
+    subgraph_t generate_random_neighbor_norm(subgraph_t p) {
+        std::normal_distribution<double> distr;
+
+        int count = distr(rdgen) + 1;
+        if (count >= (p.size() * 2)) count = p.size();
+        for (int i = 0; i < count; i++) {
+            std::uniform_int_distribution<int> selbit(0,p.size() - 1);
+            int sel = selbit(rdgen);
+            p[sel] = 1 - p[sel];
+        }
+
+        return p;
+    }
+
     adjacency_matrix_t create_subgraph_adjacency_matrix(const subgraph_t &subgraph, const adjacency_matrix_t &problem) {
         adjacency_matrix_t subgraph_adjacency_matrix;
         for (int node_y = 1; node_y < subgraph.size(); node_y++) {
@@ -343,6 +357,34 @@ namespace mhe {
         }
         return best_subgraph;
     }
+
+    subgraph_t solve_sim_annealing(const adjacency_matrix_t &problem, int iterations = 20,
+                                   std::function<double(int)> T = [](auto i){return 1.0 / (i + 1);}
+                                   ) {
+        using namespace  std;
+        auto subgraph = generate_random_subgraph(problem);
+        auto best_subgraph = subgraph;
+        auto goal = goal_factory(problem);
+
+        for (int i = 0; i <  iterations; i++) {
+            auto t = generate_random_neighbor_norm(subgraph);
+            if (goal(t) >= goal(subgraph) ) {
+                subgraph = t;
+                if (goal(subgraph) > goal(best_subgraph)) {
+                    best_subgraph = subgraph;
+                    std::cout << " --> " << best_subgraph << " -> " << goal(best_subgraph);
+                    std::cout << "  BEST! ";
+                    std::cout << std::endl;
+                }
+            } else {
+                uniform_real_distribution<double> u(0.0,1.0);
+                if (u(rdgen) < exp((abs(goal(t) - goal(subgraph)) / T(i))) ) {
+                    subgraph = t;
+                }
+            }
+        }
+        return best_subgraph;
+    }
 }
 
 int main() {
@@ -362,13 +404,14 @@ int main() {
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
     auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 10000);
 //    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
+    auto solution_sim_annealing = solve_sim_annealing(enormous_graph, 10000, [](int i){return 1000*std::pow(0.99,(double)i);});
 
 //    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
 //    generate_graphviz_output(matrix);
 //    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
 //    generate_graphviz_output(matrix2);
-    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
-    generate_graphviz_output(matrix3, solution_tabu);
+    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_sim_annealing, enormous_graph);
+    generate_graphviz_output(matrix3, solution_sim_annealing);
 
     return 0;
 }
