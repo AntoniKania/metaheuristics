@@ -52,6 +52,26 @@ namespace mhe {
         std::cout << "}" << std::endl;
     }
 
+    void generate_graphviz_output(const adjacency_matrix_t &adjacency_matrix, const subgraph_t subgraph) {
+        int node_count = count_nodes_in_graph(adjacency_matrix);
+        std::vector<int> nodes_in_subgraph;
+        for (int i = 1; i <= subgraph.size(); i++) {
+            if (subgraph.at(i - 1) == 1) {
+                nodes_in_subgraph.push_back(i);
+            }
+        }
+        std::cout << "graph {" << std::endl;
+        for (int nodeY = 1; nodeY < node_count; nodeY++) {
+            for (int nodeX = nodeY + 1; nodeX <= node_count; nodeX++) {
+                int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, adjacency_matrix);
+                if (adjacency_matrix[array_index] == 1) {
+                    std::cout << "    " << nodes_in_subgraph.at(nodeY - 1) << " -- " << nodes_in_subgraph.at(nodeX - 1) << ";" << std::endl;
+                }
+            }
+        }
+        std::cout << "}" << std::endl;
+    }
+
     adjacency_matrix_t generate_random_graph(const int &num_nodes) {
         int adjacency_matrix_size = num_nodes * (num_nodes - 1) / 2; // upper triangle, self connections skipped
         adjacency_matrix_t adjacency_matrix(adjacency_matrix_size);
@@ -335,20 +355,20 @@ int main() {
             0
     };
 
-    auto enormous_graph = generate_random_graph(100);
+    auto enormous_graph = generate_random_graph(10);
     generate_graphviz_output(enormous_graph);
 
 //    auto solution = solve(enormous_graph);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
-//    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 10000);
-    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
+    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 10000);
+//    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
 
 //    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
 //    generate_graphviz_output(matrix);
-    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
-    generate_graphviz_output(matrix2);
-//    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
-//    generate_graphviz_output(matrix3);
+//    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
+//    generate_graphviz_output(matrix2);
+    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_tabu, enormous_graph);
+    generate_graphviz_output(matrix3, solution_tabu);
 
     return 0;
 }
