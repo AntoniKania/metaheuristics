@@ -5,6 +5,11 @@
 #include <algorithm>
 #include <list>
 #include <set>
+#include <fstream>
+#include <map>
+#include <chrono>
+
+std::fstream logger("mhe.log");
 
 namespace mhe {
     std::random_device rd;
@@ -40,16 +45,16 @@ namespace mhe {
 
     void generate_graphviz_output(const adjacency_matrix_t &adjacency_matrix) {
         int node_count = count_nodes_in_graph(adjacency_matrix);
-        std::cout << "graph {" << std::endl;
+        logger << "graph {" << std::endl;
         for (int nodeY = 1; nodeY < node_count; nodeY++) {
             for (int nodeX = nodeY + 1; nodeX <= node_count; nodeX++) {
                 int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, adjacency_matrix);
                 if (adjacency_matrix[array_index] == 1) {
-                    std::cout << "    " << nodeY << " -- " << nodeX << ";" << std::endl;
+                    logger << "    " << nodeY << " -- " << nodeX << ";" << std::endl;
                 }
             }
         }
-        std::cout << "}" << std::endl;
+        logger << "}" << std::endl;
     }
 
     void generate_graphviz_output(const adjacency_matrix_t &adjacency_matrix, const subgraph_t subgraph) {
@@ -60,16 +65,16 @@ namespace mhe {
                 nodes_in_subgraph.push_back(i);
             }
         }
-        std::cout << "graph {" << std::endl;
+        logger << "graph {" << std::endl;
         for (int nodeY = 1; nodeY < node_count; nodeY++) {
             for (int nodeX = nodeY + 1; nodeX <= node_count; nodeX++) {
                 int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, adjacency_matrix);
                 if (adjacency_matrix[array_index] == 1) {
-                    std::cout << "    " << nodes_in_subgraph.at(nodeY - 1) << " -- " << nodes_in_subgraph.at(nodeX - 1) << ";" << std::endl;
+                    logger << "    " << nodes_in_subgraph.at(nodeY - 1) << " -- " << nodes_in_subgraph.at(nodeX - 1) << ";" << std::endl;
                 }
             }
         }
-        std::cout << "}" << std::endl;
+        logger << "}" << std::endl;
     }
 
     adjacency_matrix_t generate_random_graph(const int &num_nodes) {
@@ -189,9 +194,9 @@ namespace mhe {
             auto t = generate_random_subgraph(problem, p_1);
             if (goal(t) >= goal(packing) ) {
                 packing = t;
-                std::cout << " --> " << packing << " -> " << goal(packing);
-                std::cout << "  BEST! ";
-                std::cout << std::endl;
+                logger << " --> " << packing << " -> " << goal(packing);
+                logger << "  BEST! ";
+                logger << std::endl;
             }
         }
         return packing;
@@ -212,9 +217,9 @@ namespace mhe {
             if (next_goal_value > best_goal_value) {
                 best_goal_value = next_goal_value;
                 best_solution = subgraph;
-                std::cout << " --> " << subgraph << " -> " <<  best_goal_value;
-                std::cout << "  BEST! ";
-                std::cout << std::endl;
+                logger << " --> " << subgraph << " -> " <<  best_goal_value;
+                logger << "  BEST! ";
+                logger << std::endl;
             }
         }
         return best_solution;
@@ -239,8 +244,9 @@ namespace mhe {
             }
 
             if (subgraphs.empty()) {
-                std::cout << "  TABU IS EMPTY!!!!!!!!! ";
-                std::cout << std::endl;
+                logger << "SNAKE CONDITION - TABU IS EMPTY!!!!!!!!! ";
+                logger << std::endl;
+                return best_subgraph;
             }
 
             auto subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
@@ -252,9 +258,9 @@ namespace mhe {
 
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
-                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
-                std::cout << "  BEST! ";
-                std::cout << std::endl;
+                logger << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                logger << "  BEST! ";
+                logger << std::endl;
             }
             tabu_list.push_back(subgraph);
             tabu.insert(subgraph);
@@ -285,7 +291,9 @@ namespace mhe {
             }
 
             if (subgraphs.empty()) {
-
+                logger << "SNAKE CONDITION - TABU IS EMPTY!!!!!!!!! ";
+                logger << std::endl;
+                return best_subgraph;
             }
 
             auto subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
@@ -297,9 +305,9 @@ namespace mhe {
 
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
-                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
-                std::cout << "  BEST! ";
-                std::cout << std::endl;
+                logger << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                logger << "  BEST! ";
+                logger << std::endl;
             }
             tabu_list.push_back(subgraph);
             if (tabu_list.size() > tabu_size) {
@@ -343,9 +351,9 @@ namespace mhe {
 
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
-                std::cout << " --> " << subgraph_next << " -> " << goal(subgraph_next);
-                std::cout << "  BEST! ";
-                std::cout << std::endl;
+                logger << " --> " << subgraph_next << " -> " << goal(subgraph_next);
+                logger << "  BEST! ";
+                logger << std::endl;
             }
             last_visited_list.push_back(subgraph);
             tabu.insert(subgraph);
@@ -372,9 +380,9 @@ namespace mhe {
                 subgraph = t;
                 if (goal(subgraph) > goal(best_subgraph)) {
                     best_subgraph = subgraph;
-                    std::cout << " --> " << best_subgraph << " -> " << goal(best_subgraph);
-                    std::cout << "  BEST! ";
-                    std::cout << std::endl;
+                    logger << " --> " << best_subgraph << " -> " << goal(best_subgraph);
+                    logger << "  BEST! ";
+                    logger << std::endl;
                 }
             } else {
                 uniform_real_distribution<double> u(0.0,1.0);
@@ -387,8 +395,13 @@ namespace mhe {
     }
 }
 
-int main() {
+int main(int argc, char **argv) {
     using namespace mhe;
+    std::vector<std::string> args(argv, argv+argc);
+    std::string  selected_solver = "solve_random";
+    if (args.size() >= 2) {
+        selected_solver = args[1];
+    }
     adjacency_matrix_t example_graph = {
             1,1,1,1,1,
             1,0,1,1,
@@ -402,16 +415,33 @@ int main() {
 
 //    auto solution = solve(enormous_graph);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
-    auto solution_tabu = solve_tabu_avoid_snake(enormous_graph, 10000);
+//    auto solution_tabu = solve_tabu_set(enormous_graph, 5000);
 //    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
-    auto solution_sim_annealing = solve_sim_annealing(enormous_graph, 10000, [](int i){return 1000*std::pow(0.99,(double)i);});
+//    auto solution_sim_annealing = solve_sim_annealing(enormous_graph, 10000, [](int i){return 1000*std::pow(0.99,(double)i);});
 
 //    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
 //    generate_graphviz_output(matrix);
 //    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
 //    generate_graphviz_output(matrix2);
-    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_sim_annealing, enormous_graph);
-    generate_graphviz_output(matrix3, solution_sim_annealing);
+//    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_sim_annealing, enormous_graph);
+//    generate_graphviz_output(matrix3, solution_sim_annealing);
+
+    std::map<std::string, std::function<subgraph_t(adjacency_matrix_t)>> solvers;
+    solvers["solve_hill_climbing"] = [&](auto knapsack){return solve_hill_climbing(knapsack, 10000);};
+    solvers["solve_tabu"] = [&](auto knapsack){return solve_tabu_set(knapsack, 5000);};
+    solvers["solve_tabu_list"] = [&](auto knapsack){return solve_tabu_list(knapsack, 5000);};
+    solvers["solve_tabu_avoid_snake"] = [&](auto knapsack){return solve_tabu_avoid_snake(knapsack, 5000);};
+    solvers["solve_sim_annealing"] = [&](auto knapsack){return solve_sim_annealing(knapsack, 1000000, [](int i){return 1000*std::pow(0.99,(double)i);});};
+    solvers["solve_random"] = [&](auto knapsack){return solve_random(knapsack, 10000000);};
+    solvers["solve_random_n"] = [&](auto knapsack){return solve_random(knapsack, 100000, 0.1);};
+
+    auto goal = goal_factory(enormous_graph);
+    auto start_time = std::chrono::system_clock::now();
+    auto result = solvers[selected_solver](enormous_graph);
+    auto end_time = std::chrono::system_clock::now();
+    auto computation_time =  std::chrono::nanoseconds(end_time - start_time);
+
+    std::cout << selected_solver << " " << goal(result) << " " << computation_time.count() << " " << result << std::endl;
 
     return 0;
 }
