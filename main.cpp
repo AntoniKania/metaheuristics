@@ -393,6 +393,101 @@ namespace mhe {
         }
         return best_subgraph;
     }
+
+    struct subgraph_with_score {
+        subgraph_t subgraph;
+        int score;
+    };
+
+    void evaluate_population(std::vector<subgraph_with_score>& population,
+                             const std::function<int(const subgraph_t)>& goal_function
+                             ) {
+        for (auto& individual : population) {
+            individual.score = goal_function(individual.subgraph);
+        }
+    }
+
+    std::vector<subgraph_with_score> select_using_truncation_selection(const std::vector<subgraph_with_score>& population) {
+        auto sorted_population = population;
+        std::sort(sorted_population.begin(), sorted_population.end(),
+                  [](const subgraph_with_score& a, const subgraph_with_score& b){ return a.score > b.score; });
+
+        auto first = sorted_population.begin();
+        auto last = sorted_population.begin() + population.size() / 2;
+        std::vector<subgraph_with_score> selected(first, last);
+        return selected;
+    }
+
+    subgraph_with_score one_point_crossover(const subgraph_with_score& parent1,
+                                            const subgraph_with_score& parent2,
+                                            int crossover_point) {
+        subgraph_with_score offspring = subgraph_with_score{subgraph_t(parent1.subgraph.size()), 0};
+
+        for (int i = 0; i < crossover_point; i++) {
+            offspring.subgraph.at(i) = parent1.subgraph[i];
+        }
+
+        for (int i = crossover_point; i < parent2.subgraph.size(); i++) {
+            offspring.subgraph.at(i) = parent2.subgraph[i];
+        }
+
+        return offspring;
+    }
+
+    std::vector<subgraph_with_score> perform_one_point_crossover(const std::vector<subgraph_with_score>& selected, int population_size) {
+        std::vector<subgraph_with_score> new_population;
+        int size_individual = selected.at(0).subgraph.size();
+        std::uniform_int_distribution<> dist_parent_index(0, selected.size() - 1);
+        std::uniform_int_distribution<char> dist_crossover_point(0, size_individual - 1);
+        while (new_population.size() < population_size) {
+            int crossover_point = dist_crossover_point(rdgen);
+            int parent1_id = dist_parent_index(rdgen);
+            int parent2_id = dist_parent_index(rdgen);
+            subgraph_with_score offspring1 = one_point_crossover(selected[parent1_id], selected[parent2_id], crossover_point);
+            subgraph_with_score offspring2 = one_point_crossover(selected[parent2_id], selected[parent1_id], crossover_point);
+            new_population.push_back(offspring1);
+            if (new_population.size() < population_size) {
+                new_population.push_back(offspring2);
+            }
+        }
+        return new_population;
+    }
+
+    void perform_bit_flip_mutation(std::vector<subgraph_with_score>& population) {
+        std::uniform_int_distribution<> dist_mutate(0, 1);
+        std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size());
+        for (auto &e : population) {
+            if (dist_mutate(rdgen) == 1) {
+                int bit_to_flip = dist_gene_to_mutate(rdgen);
+                e.subgraph[bit_to_flip] = 1 - e.subgraph[bit_to_flip];
+            }
+        }
+    }
+
+    subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem) {
+        std::vector<subgraph_with_score> population;
+        auto goal = goal_factory(problem);
+        for (int i = 0; i < count_nodes_in_graph(problem); i++) {
+            const subgraph_t &subgraph = generate_random_subgraph(problem);
+            population.push_back(subgraph_with_score{subgraph, 0});
+        }
+
+        for (int i = 0; i < 200; i++) {
+            evaluate_population(population, goal);
+            auto selected = select_using_truncation_selection(population); // selection
+            auto new_population = perform_one_point_crossover(selected, population.size()); // crossover
+            perform_bit_flip_mutation(new_population); //mutation
+            population = new_population;
+
+        }
+
+        evaluate_population(population, goal);
+        auto sorted_population = population;
+        std::sort(sorted_population.begin(), sorted_population.end(),
+                  [](const subgraph_with_score& a, const subgraph_with_score& b){ return a.score > b.score; });
+
+        return sorted_population.at(0).subgraph;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -413,7 +508,7 @@ int main(int argc, char **argv) {
     auto enormous_graph = generate_random_graph(10);
     generate_graphviz_output(enormous_graph);
 
-//    auto solution = solve(enormous_graph);
+    auto solution = solve_genetic_algorithm(enormous_graph);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
 //    auto solution_tabu = solve_tabu_set(enormous_graph, 5000);
 //    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
