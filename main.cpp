@@ -418,17 +418,31 @@ namespace mhe {
         return selected;
     }
 
+    subgraph_with_score uniform_crossover(const subgraph_with_score& parent1, const subgraph_with_score& parent2) {
+        subgraph_with_score offspring = subgraph_with_score{subgraph_t(parent1.subgraph.size()), 0};
+        std::uniform_int_distribution<> dist(0, 1);
+        for (int i = 0; i < offspring.subgraph.size(); i++) {
+            if (dist(rdgen) == 1) {
+                offspring.subgraph[i] = parent1.subgraph[i];
+            } else {
+                offspring.subgraph[i] = parent2.subgraph[i];
+            }
+        }
+
+        return offspring;
+    }
+
     subgraph_with_score one_point_crossover(const subgraph_with_score& parent1,
                                             const subgraph_with_score& parent2,
                                             int crossover_point) {
         subgraph_with_score offspring = subgraph_with_score{subgraph_t(parent1.subgraph.size()), 0};
 
         for (int i = 0; i < crossover_point; i++) {
-            offspring.subgraph.at(i) = parent1.subgraph[i];
+            offspring.subgraph[i] = parent1.subgraph[i];
         }
 
         for (int i = crossover_point; i < parent2.subgraph.size(); i++) {
-            offspring.subgraph.at(i) = parent2.subgraph[i];
+            offspring.subgraph[i] = parent2.subgraph[i];
         }
 
         return offspring;
@@ -453,6 +467,18 @@ namespace mhe {
         return new_population;
     }
 
+    std::vector<subgraph_with_score> perform_uniform_crossover(const std::vector<subgraph_with_score>& selected, int population_size) {
+        std::vector<subgraph_with_score> new_population;
+        std::uniform_int_distribution<> dist_parent_index(0, selected.size() - 1);
+        while (new_population.size() < population_size) {
+            int parent1_id = dist_parent_index(rdgen);
+            int parent2_id = dist_parent_index(rdgen);
+            subgraph_with_score offspring = uniform_crossover(selected[parent1_id], selected[parent2_id]);
+            new_population.push_back(offspring);
+        }
+        return new_population;
+    }
+
     void perform_bit_flip_mutation(std::vector<subgraph_with_score>& population) {
         std::uniform_int_distribution<> dist_mutate(0, 1);
         std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size());
@@ -464,7 +490,12 @@ namespace mhe {
         }
     }
 
-    subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem) {
+    enum crossover_type {
+        one_point,
+        uniform
+    };
+
+    subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem, crossover_type crossover_type = one_point) {
         std::vector<subgraph_with_score> population;
         auto goal = goal_factory(problem);
         for (int i = 0; i < count_nodes_in_graph(problem); i++) {
@@ -475,7 +506,10 @@ namespace mhe {
         for (int i = 0; i < 200; i++) {
             evaluate_population(population, goal);
             auto selected = select_using_truncation_selection(population); // selection
-            auto new_population = perform_one_point_crossover(selected, population.size()); // crossover
+            std::vector<subgraph_with_score> new_population;
+            crossover_type == one_point ?
+                    new_population = perform_one_point_crossover(selected, population.size()) :
+                    new_population = perform_uniform_crossover(selected, population.size());
             perform_bit_flip_mutation(new_population); //mutation
             population = new_population;
 
@@ -508,7 +542,7 @@ int main(int argc, char **argv) {
     auto enormous_graph = generate_random_graph(10);
     generate_graphviz_output(enormous_graph);
 
-    auto solution = solve_genetic_algorithm(enormous_graph);
+    auto solution = solve_genetic_algorithm(enormous_graph, uniform);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
 //    auto solution_tabu = solve_tabu_set(enormous_graph, 5000);
 //    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
