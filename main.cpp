@@ -490,12 +490,34 @@ namespace mhe {
         }
     }
 
+    void perform_bit_swap_mutation(std::vector<subgraph_with_score>& population) {
+        std::uniform_int_distribution<> dist_mutate(0, 1);
+        std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size());
+        for (auto &e : population) {
+            if (dist_mutate(rdgen) == 1) {
+                int first_bit = dist_gene_to_mutate(rdgen);
+                int second_bit = dist_gene_to_mutate(rdgen);
+                char tmp = e.subgraph[first_bit];
+                e.subgraph[first_bit] = e.subgraph[second_bit];
+                e.subgraph[second_bit] = tmp;
+            }
+        }
+    }
+
     enum crossover_type {
         one_point,
         uniform
     };
 
-    subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem, crossover_type crossover_type = one_point) {
+    enum mutation_type {
+        bit_flip,
+        bit_swap
+    };
+
+    subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem,
+                                       crossover_type crossover_type = one_point,
+                                       mutation_type mutation_type = bit_flip
+                                       ) {
         std::vector<subgraph_with_score> population;
         auto goal = goal_factory(problem);
         for (int i = 0; i < count_nodes_in_graph(problem); i++) {
@@ -510,7 +532,9 @@ namespace mhe {
             crossover_type == one_point ?
                     new_population = perform_one_point_crossover(selected, population.size()) :
                     new_population = perform_uniform_crossover(selected, population.size());
-            perform_bit_flip_mutation(new_population); //mutation
+            mutation_type == bit_flip ?
+                    perform_bit_flip_mutation(new_population) :
+                    perform_bit_swap_mutation(new_population);
             population = new_population;
 
         }
@@ -542,7 +566,7 @@ int main(int argc, char **argv) {
     auto enormous_graph = generate_random_graph(10);
     generate_graphviz_output(enormous_graph);
 
-    auto solution = solve_genetic_algorithm(enormous_graph, uniform);
+    auto solution = solve_genetic_algorithm(enormous_graph, uniform, bit_swap);
 //    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
 //    auto solution_tabu = solve_tabu_set(enormous_graph, 5000);
 //    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
