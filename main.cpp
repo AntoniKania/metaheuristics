@@ -516,7 +516,9 @@ namespace mhe {
 
     subgraph_t solve_genetic_algorithm(const adjacency_matrix_t &problem,
                                        crossover_type crossover_type = one_point,
-                                       mutation_type mutation_type = bit_flip
+                                       mutation_type mutation_type = bit_flip,
+                                       bool terminate_on_generations_number = false,
+                                       int iterations = 1000
                                        ) {
         std::vector<subgraph_with_score> population;
         auto goal = goal_factory(problem);
@@ -525,9 +527,17 @@ namespace mhe {
             population.push_back(subgraph_with_score{subgraph, 0});
         }
 
-        for (int i = 0; i < 200; i++) {
+        int max_generations_without_finding_fitter = 0;
+        if (!terminate_on_generations_number) {
+            max_generations_without_finding_fitter = count_nodes_in_graph(problem) * 20;
+        }
+
+        int i = 0;
+        int generations_without_fitter = 0;
+        int best_score = 0;
+        while (true) {
             evaluate_population(population, goal);
-            auto selected = select_using_truncation_selection(population); // selection
+            auto selected = select_using_truncation_selection(population);
             std::vector<subgraph_with_score> new_population;
             crossover_type == one_point ?
                     new_population = perform_one_point_crossover(selected, population.size()) :
@@ -537,6 +547,26 @@ namespace mhe {
                     perform_bit_swap_mutation(new_population);
             population = new_population;
 
+            if (!terminate_on_generations_number) {
+                evaluate_population(new_population, goal);
+                auto sorted_population = new_population;
+                std::sort(sorted_population.begin(), sorted_population.end(),
+                          [](const subgraph_with_score& a, const subgraph_with_score& b){ return a.score > b.score; });
+                if (sorted_population[0].score > best_score) {
+                    best_score = sorted_population[0].score;
+                    generations_without_fitter = 0;
+                } else {
+                    generations_without_fitter++;
+                    if (generations_without_fitter >= max_generations_without_finding_fitter) {
+                        break;
+                    }
+                }
+            } else {
+                i++;
+                if (i >= iterations) {
+                    break;
+                }
+            }
         }
 
         evaluate_population(population, goal);
