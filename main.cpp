@@ -18,6 +18,14 @@ namespace mhe {
     using adjacency_matrix_t = std::vector<char>;
     using subgraph_t = std::vector<char>;
 
+    adjacency_matrix_t string_to_adjacency_matrix(const std::string &str) {
+        adjacency_matrix_t matrix;
+        for (char c : str) {
+            matrix.push_back(c);
+        }
+        return matrix;
+    }
+
     std::ostream & operator<<(std::ostream &o, const subgraph_t &p) {
         for (auto &e: p) {
             o << ((e == 0) ? "0" : "1");
@@ -580,11 +588,6 @@ namespace mhe {
 
 int main(int argc, char **argv) {
     using namespace mhe;
-    std::vector<std::string> args(argv, argv+argc);
-    std::string  selected_solver = "solve_random";
-    if (args.size() >= 2) {
-        selected_solver = args[1];
-    }
     adjacency_matrix_t example_graph = {
             1,1,1,1,1,
             1,0,1,1,
@@ -593,37 +596,62 @@ int main(int argc, char **argv) {
             0
     };
 
-    auto enormous_graph = generate_random_graph(10);
+    std::vector<std::string> args(argv, argv+argc);
+    std::string  selected_solver = "solve_random";
+    int iterations = 10000;
+    adjacency_matrix_t problem = example_graph;
+
+    auto enormous_graph = generate_random_graph(12);
+//    std::cout << enormous_graph;
     generate_graphviz_output(enormous_graph);
 
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "-s" || args[i] == "--solver") {
+            if (i + 1 < args.size()) {
+                selected_solver = args[++i];
+            } else {
+                return 1;
+            }
+        } else if (args[i] == "-i" || args[i] == "--iterations") {
+            if (i + 1 < args.size()) {
+                iterations = stoi(args[++i]);
+            } else {
+                return 1;
+            }
+        } else if (args[i] == "-p" || args[i] == "--problem") {
+            if (i + 1 < args.size()) {
+                problem = string_to_adjacency_matrix(args[++i]);
+            } else {
+                return 1;
+            }
+        } else {
+            return 1;
+        }
+    }
+
     auto solution = solve_genetic_algorithm(enormous_graph, uniform, bit_swap);
-//    auto solution_hill_climbing = solve_hill_climbing(enormous_graph);
-//    auto solution_tabu = solve_tabu_set(enormous_graph, 5000);
-//    auto solution_random = solve_random(enormous_graph, 10000, 0.1);
-//    auto solution_sim_annealing = solve_sim_annealing(enormous_graph, 10000, [](int i){return 1000*std::pow(0.99,(double)i);});
 
-//    const mhe::adjacency_matrix_t &matrix = create_subgraph_adjacency_matrix(solution, enormous_graph);
-//    generate_graphviz_output(matrix);
-//    const mhe::adjacency_matrix_t &matrix2 = create_subgraph_adjacency_matrix(solution_random, enormous_graph);
-//    generate_graphviz_output(matrix2);
-//    const mhe::adjacency_matrix_t &matrix3 = create_subgraph_adjacency_matrix(solution_sim_annealing, enormous_graph);
-//    generate_graphviz_output(matrix3, solution_sim_annealing);
+    std::map<std::string, std::function<subgraph_t(adjacency_matrix_t, int)>> solvers;
+    solvers["solve_hill_climbing"] = [&](auto problem, int iterations){return solve_hill_climbing(problem, iterations);};
+    solvers["solve_tabu"] = [&](auto problem, int iterations){return solve_tabu_set(problem, iterations);};
+    solvers["solve_tabu_list"] = [&](auto problem, int iterations){return solve_tabu_list(problem, iterations);};
+    solvers["solve_tabu_avoid_snake"] = [&](auto problem, int iterations){return solve_tabu_avoid_snake(problem, iterations);};
+    solvers["solve_sim_annealing"] = [&](auto problem, int iterations){return solve_sim_annealing(problem, iterations, [](int i){return 1000 * std::pow(0.99, (double)i);});};
+    solvers["solve_random"] = [&](auto problem, int iterations){return solve_random(problem, iterations);};
+    solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
+    solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
+    solvers["solve_genetic_algorithm"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip);};
 
-    std::map<std::string, std::function<subgraph_t(adjacency_matrix_t)>> solvers;
-    solvers["solve_hill_climbing"] = [&](auto knapsack){return solve_hill_climbing(knapsack, 10000);};
-    solvers["solve_tabu"] = [&](auto knapsack){return solve_tabu_set(knapsack, 5000);};
-    solvers["solve_tabu_list"] = [&](auto knapsack){return solve_tabu_list(knapsack, 5000);};
-    solvers["solve_tabu_avoid_snake"] = [&](auto knapsack){return solve_tabu_avoid_snake(knapsack, 5000);};
-    solvers["solve_sim_annealing"] = [&](auto knapsack){return solve_sim_annealing(knapsack, 1000000, [](int i){return 1000*std::pow(0.99,(double)i);});};
-    solvers["solve_random"] = [&](auto knapsack){return solve_random(knapsack, 10000000);};
-    solvers["solve_random_n"] = [&](auto knapsack){return solve_random(knapsack, 100000, 0.1);};
-
-    auto goal = goal_factory(enormous_graph);
+    logger << "problem:" << std::endl;
+    generate_graphviz_output(problem);
+    auto goal = goal_factory(problem);
     auto start_time = std::chrono::system_clock::now();
-    auto result = solvers[selected_solver](enormous_graph);
+    auto result = solvers[selected_solver](problem, iterations);
     auto end_time = std::chrono::system_clock::now();
     auto computation_time =  std::chrono::nanoseconds(end_time - start_time);
 
+    logger << "solution:" << std::endl;
+    generate_graphviz_output(create_subgraph_adjacency_matrix(result, problem));
     std::cout << selected_solver << " " << goal(result) << " " << computation_time.count() << " " << result << std::endl;
 
     return 0;
