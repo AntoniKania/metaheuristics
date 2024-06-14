@@ -195,19 +195,19 @@ namespace mhe {
 
     subgraph_t solve_random(const adjacency_matrix_t &problem, int iterations = 20, double p_1 = 0.5) {
         using namespace std;
-        auto packing = generate_random_subgraph(problem, p_1);
+        auto subgraph = generate_random_subgraph(problem, p_1);
         auto goal = goal_factory(problem);
 
         for ( int i = 0; i <  iterations; i++) {
             auto t = generate_random_subgraph(problem, p_1);
-            if (goal(t) >= goal(packing) ) {
-                packing = t;
-                logger << " --> " << packing << " -> " << goal(packing);
+            if (goal(t) >= goal(subgraph) ) {
+                subgraph = t;
+                logger << " --> " << subgraph << " -> " << goal(subgraph);
                 logger << "  BEST! ";
                 logger << std::endl;
             }
         }
-        return packing;
+        return subgraph;
     }
 
     subgraph_t solve_hill_climbing(const adjacency_matrix_t &problem, int iterations = 20) {
@@ -589,12 +589,13 @@ namespace mhe {
 int main(int argc, char **argv) {
     using namespace mhe;
     adjacency_matrix_t example_graph = {
-            1,1,1,1,1,
-            1,0,1,1,
-            1,1,1,
-            0,0,
-            0
+            1,1,1,1,
+            1,0,1,
+            1,1,
+            0,
     };
+
+    generate_graphviz_output(example_graph);
 
     std::vector<std::string> args(argv, argv+argc);
     std::string  selected_solver = "solve_random";
