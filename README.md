@@ -18,6 +18,8 @@ The clique problem involves identifying the largest clique within a given graph.
         [ 1 0 1 0 0 ]
         [ 1 1 1 0 0 ]
 
+![graphviz](https://github.com/AntoniKania/metaheuristics/assets/87483058/f2e26457-076b-40c9-b6b8-5bb1cd343b1a)
+
 graph {
 1 -- 2;
 1 -- 3;
@@ -28,6 +30,7 @@ graph {
 3 -- 4;
 3 -- 5;
 }
+
 
 In this example, it can be seen that the matrix is mirrored across the diagonal, as the value at [4,2] is the same as at [2,4], representing the same connection, assuming that graphs are undirected.
 
@@ -64,6 +67,8 @@ Let's view it in the previous example. The following subgraph will be checked an
         (1) [ 1  1  1 ]
     A = (2) [    1  1 ]
         (3) [       1 ]
+
+![graphviz(1)](https://github.com/AntoniKania/metaheuristics/assets/87483058/e78b2a9c-4ba0-4d0d-ba87-200af7d63867)
 
 graph {
 1 -- 2;
