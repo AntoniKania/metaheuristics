@@ -65,8 +65,7 @@ namespace mhe {
         logger << "}" << std::endl;
     }
 
-    void generate_graphviz_output(const adjacency_matrix_t &adjacency_matrix, const subgraph_t subgraph) {
-        int node_count = count_nodes_in_graph(adjacency_matrix);
+    void generate_graphviz_output(const adjacency_matrix_t &problem, const subgraph_t subgraph) {
         std::vector<int> nodes_in_subgraph;
         for (int i = 1; i <= subgraph.size(); i++) {
             if (subgraph.at(i - 1) == 1) {
@@ -74,13 +73,20 @@ namespace mhe {
             }
         }
         logger << "graph {" << std::endl;
-        for (int nodeY = 1; nodeY < node_count; nodeY++) {
-            for (int nodeX = nodeY + 1; nodeX <= node_count; nodeX++) {
-                int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, adjacency_matrix);
-                if (adjacency_matrix[array_index] == 1) {
-                    logger << "    " << nodes_in_subgraph.at(nodeY - 1) << " -- " << nodes_in_subgraph.at(nodeX - 1) << ";" << std::endl;
+        for (auto nodeY : nodes_in_subgraph) {
+            if (nodeY == nodes_in_subgraph.at(nodes_in_subgraph.size() - 1)) {
+                continue;
+            }
+            for (auto nodeX : nodes_in_subgraph) {
+                if (nodeX == nodes_in_subgraph.at(0) || nodeY == nodeX) {
+                    continue;
+                }
+                int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, problem);
+                if (problem[array_index] == 1) {
+                    logger << "    " << nodeY << " -- " << nodeX << ";" << std::endl;
                 }
             }
+
         }
         logger << "}" << std::endl;
     }
@@ -630,7 +636,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    auto solution = solve_genetic_algorithm(enormous_graph, uniform, bit_swap);
+    auto solution = solve_genetic_algorithm(example_graph, uniform, bit_flip);
+    logger << "solution example:" << std::endl;
+    generate_graphviz_output(example_graph, solution);
 
     std::map<std::string, std::function<subgraph_t(adjacency_matrix_t, int)>> solvers;
     solvers["solve_hill_climbing"] = [&](auto problem, int iterations){return solve_hill_climbing(problem, iterations);};
@@ -652,7 +660,7 @@ int main(int argc, char **argv) {
     auto computation_time =  std::chrono::nanoseconds(end_time - start_time);
 
     logger << "solution:" << std::endl;
-    generate_graphviz_output(create_subgraph_adjacency_matrix(result, problem));
+    generate_graphviz_output(problem, result);
     std::cout << selected_solver << " " << goal(result) << " " << computation_time.count() << " " << result << std::endl;
 
     return 0;
