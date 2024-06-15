@@ -506,7 +506,7 @@ namespace mhe {
 
     void perform_bit_swap_mutation(std::vector<subgraph_with_score>& population) {
         std::uniform_int_distribution<> dist_mutate(0, 1);
-        std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size());
+        std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size() - 1);
         for (auto &e : population) {
             if (dist_mutate(rdgen) == 1) {
                 int first_bit = dist_gene_to_mutate(rdgen);
@@ -608,10 +608,6 @@ int main(int argc, char **argv) {
     int iterations = 10000;
     adjacency_matrix_t problem = example_graph;
 
-    auto enormous_graph = generate_random_graph(12);
-//    std::cout << enormous_graph;
-    generate_graphviz_output(enormous_graph);
-
     for (size_t i = 1; i < args.size(); ++i) {
         if (args[i] == "-s" || args[i] == "--solver") {
             if (i + 1 < args.size()) {
@@ -636,10 +632,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    auto solution = solve_genetic_algorithm(example_graph, uniform, bit_flip);
-    logger << "solution example:" << std::endl;
-    generate_graphviz_output(example_graph, solution);
-
     std::map<std::string, std::function<subgraph_t(adjacency_matrix_t, int)>> solvers;
     solvers["solve_hill_climbing"] = [&](auto problem, int iterations){return solve_hill_climbing(problem, iterations);};
     solvers["solve_tabu"] = [&](auto problem, int iterations){return solve_tabu_set(problem, iterations);};
@@ -650,8 +642,7 @@ int main(int argc, char **argv) {
     solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
     solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
     solvers["solve_genetic_algorithm"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip);};
-
-    logger << "problem:" << std::endl;
+    
     generate_graphviz_output(problem);
     auto goal = goal_factory(problem);
     auto start_time = std::chrono::system_clock::now();
@@ -661,7 +652,8 @@ int main(int argc, char **argv) {
 
     logger << "solution:" << std::endl;
     generate_graphviz_output(problem, result);
-    std::cout << selected_solver << " " << goal(result) << " " << computation_time.count() << " " << result << std::endl;
+    int score = goal(result);
+    std::cout << selected_solver << " " << score << " " << computation_time.count() << " " << result << std::endl;
 
     return 0;
 }
