@@ -10,6 +10,7 @@
 #include <chrono>
 
 std::fstream logger("mhe.log");
+std::ofstream conv_log("conv.log");
 
 namespace mhe {
     std::random_device rd;
@@ -21,7 +22,11 @@ namespace mhe {
     adjacency_matrix_t string_to_adjacency_matrix(const std::string &str) {
         adjacency_matrix_t matrix;
         for (char c : str) {
-            matrix.push_back(c);
+            if (c == '1') {
+                matrix.push_back(1);
+            } else {
+                matrix.push_back(0);
+            }
         }
         return matrix;
     }
@@ -221,12 +226,13 @@ namespace mhe {
         auto goal = goal_factory(problem);
         auto best_goal_value = goal(subgraph);
         auto best_solution = subgraph;
+        conv_log << goal(subgraph) << std::endl;
         for (int i = 0; i < iterations; i++) {
             auto subgraphs = generate_neighbor_solutions(subgraph);
             subgraph = *std::max_element(subgraphs.begin(), subgraphs.end(),
                                          [=](auto a, auto b) {
-                                            return goal(a) < goal(b);
-                                        });
+                                             return goal(a) < goal(b);
+                                         });
             double next_goal_value = goal(subgraph);
             if (next_goal_value > best_goal_value) {
                 best_goal_value = next_goal_value;
@@ -235,6 +241,7 @@ namespace mhe {
                 logger << "  BEST! ";
                 logger << std::endl;
             }
+            conv_log << goal(best_solution) << std::endl;
         }
         return best_solution;
     }
@@ -243,33 +250,31 @@ namespace mhe {
         auto subgraph = generate_random_subgraph(problem);
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
-
         std::list<subgraph_t> tabu_list = {subgraph};
         std::set<subgraph_t> tabu = {subgraph};
+        conv_log << goal(subgraph) << std::endl;
 
         auto is_in_tabu = [&](subgraph_t &elem) -> bool {
             return tabu.find(elem) != tabu.end() ;
         };
-
         for (int i = 0; i <  iterations; i++) {
             std::vector<subgraph_t> subgraphs;
             for (auto p: generate_neighbor_solutions(subgraph)) {
                 if (!is_in_tabu(p)) subgraphs.push_back(p);
             }
-
             if (subgraphs.empty()) {
-                logger << "SNAKE CONDITION - TABU IS EMPTY!!!!!!!!! ";
+                logger << "SNAKE CONDITION - ALL NEIGHBOURS ARE IN TABU!!!!!!!!!";
                 logger << std::endl;
                 return best_subgraph;
             }
-
             auto subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
                                                    [=](auto a, auto b)
-                                                  {
-                                                      return goal(a) < goal(b);
-                                                  });
+                                                   {
+                                                       return goal(a) < goal(b);
+                                                   });
             subgraph = subgraph_next;
 
+            conv_log << goal(subgraph) << std::endl;
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
                 logger << " --> " << subgraph_next << " -> " << goal(subgraph_next);
@@ -282,7 +287,6 @@ namespace mhe {
                 tabu.erase(tabu_list.front());
                 tabu_list.pop_front();
             }
-
         }
         return best_subgraph;
     }
@@ -337,20 +341,18 @@ namespace mhe {
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
 
+        conv_log << "solve_sim_annealing convergence: " << std::endl;
         std::list<subgraph_t> last_visited_list = {subgraph};
         std::set<subgraph_t> tabu = {subgraph};
-
         auto is_in_tabu = [&](subgraph_t &elem) -> bool {
             return tabu.find(elem) != tabu.end() ;
         };
-
         for (int i = 0; i <  iterations; i++) {
             std::vector<subgraph_t> subgraphs;
             subgraph_t subgraph_next;
             for (auto p: generate_neighbor_solutions(subgraph)) {
                 if (!is_in_tabu(p)) subgraphs.push_back(p);
             }
-
             if (subgraphs.empty()) {
                 subgraph_next = last_visited_list.back();
                 last_visited_list.pop_back();
@@ -362,7 +364,7 @@ namespace mhe {
                                                   });
             }
             subgraph = subgraph_next;
-
+            conv_log << goal(subgraph) << std::endl;
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
                 logger << " --> " << subgraph_next << " -> " << goal(subgraph_next);
@@ -375,7 +377,6 @@ namespace mhe {
                 tabu.erase(last_visited_list.front());
                 last_visited_list.pop_front();
             }
-
         }
         return best_subgraph;
     }
