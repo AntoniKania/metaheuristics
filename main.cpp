@@ -531,6 +531,18 @@ namespace mhe {
         return result;
     }
 
+    std::vector<subgraph_with_score> tournament_selection(const std::vector<subgraph_with_score> &population, int result_size) {
+        std::uniform_int_distribution<int> u(0, population.size() - 1);
+        std::vector<subgraph_with_score> result;
+        for (int i = 0; i < result_size; i++) {
+            int idx1 = u(rdgen);
+            int idx2 = u(rdgen);
+            if (population.at(idx1).score > population.at(idx2).score) population.at(idx1);
+            else result.push_back(population.at(idx2));
+        }
+        return result;
+    }
+
     enum crossover_type {
         one_point,
         uniform
@@ -612,6 +624,87 @@ namespace mhe {
 
         return get_best().subgraph;
     }
+
+    subgraph_t solve_genetic_algorithm_elit(const adjacency_matrix_t &problem,
+                                            crossover_type crossover_type = one_point,
+                                            mutation_type mutation_type = bit_flip,
+                                            bool terminate_on_generations_number = false,
+                                            int iterations = 1000,
+                                            int elit_size = 1
+    ) {
+        std::vector<subgraph_with_score> population;
+        auto goal = goal_factory(problem);
+        std::function<double(const subgraph_t &)> fitness = [goal](const subgraph_t & specimen){
+            double g = goal(specimen);
+            if (g < 0) return 0.0;
+            return g;
+        };
+
+        for (int i = 0; i < count_nodes_in_graph(problem) * count_nodes_in_graph(problem); i++) {
+            const subgraph_t &subgraph = generate_random_subgraph(problem);
+            population.push_back(subgraph_with_score{subgraph, 0});
+        }
+
+        int max_generations_without_finding_fitter = 0;
+        if (!terminate_on_generations_number) {
+            max_generations_without_finding_fitter = count_nodes_in_graph(problem) * 20;
+        }
+
+        auto get_best = [&](){
+            std::sort(population.begin(), population.end(),
+                      [](const subgraph_with_score& a, const subgraph_with_score& b){ return a.score > b.score; });
+            return population.at(0);
+        };
+
+        int i = 0;
+        int generations_without_fitter = 0;
+        int best_score = 0;
+        conv_log << "solve_genetic_algorithm convergence: " << std::endl;
+        conv_log << "params: " <<  crossover_type << " " << mutation_type << std::endl;
+        while (true) {
+            evaluate_population(population, fitness);
+            conv_log << get_best().score << std::endl;
+            std::vector<subgraph_with_score> elite;
+            for (int i = 0; i < elit_size; i++) {
+                elite.push_back(population.at(i));
+            }
+            auto selected = tournament_selection(population, population.size() - elit_size);
+            std::vector<subgraph_with_score> new_population;
+            crossover_type == one_point ?
+                    new_population = perform_one_point_crossover(selected, selected.size()) :
+                    new_population = perform_uniform_crossover(selected, selected.size());
+            mutation_type == bit_flip ?
+                    perform_bit_flip_mutation(new_population) :
+                    perform_bit_swap_mutation(new_population);
+            std::vector<subgraph_with_score> new_population_with_elite;
+            new_population_with_elite.reserve(population.size());
+            new_population_with_elite.insert(new_population_with_elite.end(), new_population.begin(), new_population.end() );
+            new_population_with_elite.insert(new_population_with_elite.end(), elite.begin(), elite.end());
+            population = new_population_with_elite;
+
+            if (!terminate_on_generations_number) {
+                evaluate_population(population, fitness);
+                if (get_best().score > best_score) {
+                    best_score = get_best().score;
+                    generations_without_fitter = 0;
+                } else {
+                    generations_without_fitter++;
+                    if (generations_without_fitter >= max_generations_without_finding_fitter) {
+                        break;
+                    }
+                }
+            } else {
+                i++;
+                if (i >= iterations) {
+                    break;
+                }
+            }
+        }
+        evaluate_population(population, fitness);
+        conv_log << get_best().score << std::endl;
+
+        return get_best().subgraph;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -664,7 +757,7 @@ int main(int argc, char **argv) {
     solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
     solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
     solvers["solve_genetic_algorithm"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip);};
-    
+
     generate_graphviz_output(problem);
     auto goal = goal_factory(problem);
     auto start_time = std::chrono::system_clock::now();
