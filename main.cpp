@@ -208,11 +208,13 @@ namespace mhe {
         using namespace std;
         auto subgraph = generate_random_subgraph(problem, p_1);
         auto goal = goal_factory(problem);
+        conv_log << goal(subgraph) << std::endl;
 
-        for ( int i = 0; i <  iterations; i++) {
+        for (int i = 0; i <  iterations; i++) {
             auto t = generate_random_subgraph(problem, p_1);
             if (goal(t) >= goal(subgraph) ) {
                 subgraph = t;
+                conv_log << goal(subgraph) << std::endl;
                 logger << " --> " << subgraph << " -> " << goal(subgraph);
                 logger << "  BEST! ";
                 logger << std::endl;
@@ -226,7 +228,7 @@ namespace mhe {
         auto goal = goal_factory(problem);
         auto best_goal_value = goal(subgraph);
         auto best_solution = subgraph;
-        conv_log << goal(subgraph) << std::endl;
+        conv_log << best_goal_value << std::endl;
         for (int i = 0; i < iterations; i++) {
             auto subgraphs = generate_neighbor_solutions(subgraph);
             subgraph = *std::max_element(subgraphs.begin(), subgraphs.end(),
@@ -295,6 +297,7 @@ namespace mhe {
         auto subgraph = generate_random_subgraph(problem);
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
+        conv_log << goal(subgraph) << std::endl;
 
         std::list<subgraph_t> tabu_list = {subgraph};
 
@@ -320,6 +323,7 @@ namespace mhe {
                                                        return goal(a) < goal(b);
                                                    });
             subgraph = subgraph_next;
+            conv_log << goal(subgraph) << std::endl;
 
             if (goal(subgraph) > goal(best_subgraph)) {
                 best_subgraph = subgraph;
@@ -340,8 +344,8 @@ namespace mhe {
         auto subgraph = generate_random_subgraph(problem);
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
+        conv_log << goal(subgraph) << std::endl;
 
-        conv_log << "solve_sim_annealing convergence: " << std::endl;
         std::list<subgraph_t> last_visited_list = {subgraph};
         std::set<subgraph_t> tabu = {subgraph};
         auto is_in_tabu = [&](subgraph_t &elem) -> bool {
@@ -388,11 +392,13 @@ namespace mhe {
         auto subgraph = generate_random_subgraph(problem);
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
+        conv_log << goal(subgraph) << std::endl;
 
         for (int i = 0; i <  iterations; i++) {
             auto t = generate_random_neighbor_norm(subgraph);
             if (goal(t) >= goal(subgraph) ) {
                 subgraph = t;
+                conv_log << goal(subgraph) << std::endl;
                 if (goal(subgraph) > goal(best_subgraph)) {
                     best_subgraph = subgraph;
                     logger << " --> " << best_subgraph << " -> " << goal(best_subgraph);
@@ -403,6 +409,7 @@ namespace mhe {
                 uniform_real_distribution<double> u(0.0,1.0);
                 if (u(rdgen) < exp((abs(goal(t) - goal(subgraph)) / T(i))) ) {
                     subgraph = t;
+                    conv_log << goal(subgraph) << std::endl;
                 }
             }
         }
@@ -586,8 +593,6 @@ namespace mhe {
         int i = 0;
         int generations_without_fitter = 0;
         int best_score = 0;
-        conv_log << "solve_genetic_algorithm convergence: " << std::endl;
-        conv_log << "params: " <<  crossover_type << " " << mutation_type << std::endl;
         while (true) {
             evaluate_population(population, fitness);
             conv_log << get_best().score << std::endl;
@@ -659,8 +664,6 @@ namespace mhe {
         int i = 0;
         int generations_without_fitter = 0;
         int best_score = 0;
-        conv_log << "solve_genetic_algorithm convergence: " << std::endl;
-        conv_log << "params: " <<  crossover_type << " " << mutation_type << std::endl;
         while (true) {
             evaluate_population(population, fitness);
             conv_log << get_best().score << std::endl;
