@@ -9,7 +9,7 @@
 #include <map>
 #include <chrono>
 
-std::fstream logger("mhe.log");
+std::ofstream logger("mhe.log");
 std::ofstream conv_log("conv.log");
 
 namespace mhe {
@@ -181,6 +181,9 @@ namespace mhe {
                     score -= 100;
                 }
             }
+            if (score > 0) {
+                score *= 100;
+            }
             return score;
         };
     }
@@ -340,7 +343,7 @@ namespace mhe {
         return best_subgraph;
     }
 
-    subgraph_t solve_tabu_avoid_snake(const adjacency_matrix_t &problem, int iterations = 20, int tabu_size = 1000) {
+    subgraph_t solve_tabu_avoid_snake(const adjacency_matrix_t &problem, int iterations = 20, int tabu_size = 20000) {
         auto subgraph = generate_random_subgraph(problem);
         auto best_subgraph = subgraph;
         auto goal = goal_factory(problem);
@@ -358,8 +361,12 @@ namespace mhe {
                 if (!is_in_tabu(p)) subgraphs.push_back(p);
             }
             if (subgraphs.empty()) {
-                subgraph_next = last_visited_list.back();
+                if (last_visited_list.empty()) {
+                    break;
+                }
+                subgraph = last_visited_list.back();
                 last_visited_list.pop_back();
+                continue;
             } else {
                 subgraph_next = *std::max_element(subgraphs.begin(), subgraphs.end(),
                                                   [=](auto a, auto b)
@@ -407,7 +414,8 @@ namespace mhe {
                 }
             } else {
                 uniform_real_distribution<double> u(0.0,1.0);
-                if (u(rdgen) < exp((abs(goal(t) - goal(subgraph)) / T(i))) ) {
+                if (u(rdgen) < exp(-(abs(goal(t) - goal(subgraph)) / T(i)))) {
+                    logger << "worse subgraph taken, iteration: " << i <<  std::endl;
                     subgraph = t;
                     conv_log << goal(subgraph) << std::endl;
                 }
@@ -544,7 +552,7 @@ namespace mhe {
         for (int i = 0; i < result_size; i++) {
             int idx1 = u(rdgen);
             int idx2 = u(rdgen);
-            if (population.at(idx1).score > population.at(idx2).score) population.at(idx1);
+            if (population.at(idx1).score > population.at(idx2).score) result.push_back(population.at(idx1));
             else result.push_back(population.at(idx2));
         }
         return result;
@@ -681,7 +689,7 @@ namespace mhe {
                     perform_bit_swap_mutation(new_population);
             std::vector<subgraph_with_score> new_population_with_elite;
             new_population_with_elite.reserve(population.size());
-            new_population_with_elite.insert(new_population_with_elite.end(), new_population.begin(), new_population.end() );
+            new_population_with_elite.insert(new_population_with_elite.end(), new_population.begin(), new_population.end());
             new_population_with_elite.insert(new_population_with_elite.end(), elite.begin(), elite.end());
             population = new_population_with_elite;
 
@@ -760,6 +768,8 @@ int main(int argc, char **argv) {
     solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
     solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
     solvers["solve_genetic_algorithm"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip);};
+    solvers["solve_genetic_algorithm_elite"] = [&](auto problem, int iterations){return solve_genetic_algorithm_elit(problem, crossover_type::one_point, mutation_type::bit_flip);};
+    solvers["solve_genetic_algorithm_elite_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm_elit(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
 
     generate_graphviz_output(problem);
     auto goal = goal_factory(problem);
