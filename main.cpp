@@ -509,22 +509,22 @@ namespace mhe {
         return new_population;
     }
 
-    void perform_bit_flip_mutation(std::vector<subgraph_with_score>& population) {
-        std::uniform_int_distribution<> dist_mutate(0, 1);
+    void perform_bit_flip_mutation(std::vector<subgraph_with_score>& population, double mutate_probability = 0.05) {
+        std::uniform_real_distribution<> dist_mutate(0.0, 1.0);
         std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size());
         for (auto &e : population) {
-            if (dist_mutate(rdgen) == 1) {
+            if (dist_mutate(rdgen) < mutate_probability) {
                 int bit_to_flip = dist_gene_to_mutate(rdgen);
                 e.subgraph[bit_to_flip] = 1 - e.subgraph[bit_to_flip];
             }
         }
     }
 
-    void perform_bit_swap_mutation(std::vector<subgraph_with_score>& population) {
-        std::uniform_int_distribution<> dist_mutate(0, 1);
+    void perform_bit_swap_mutation(std::vector<subgraph_with_score>& population, double mutate_probability = 0.05) {
+        std::uniform_real_distribution<> dist_mutate(0.0, 1.0);
         std::uniform_int_distribution<> dist_gene_to_mutate(0, population.at(0).subgraph.size() - 1);
         for (auto &e : population) {
-            if (dist_mutate(rdgen) == 1) {
+            if (dist_mutate(rdgen) < mutate_probability) {
                 int first_bit = dist_gene_to_mutate(rdgen);
                 int second_bit = dist_gene_to_mutate(rdgen);
                 char tmp = e.subgraph[first_bit];
@@ -572,7 +572,8 @@ namespace mhe {
                                        crossover_type crossover_type = one_point,
                                        mutation_type mutation_type = bit_flip,
                                        bool terminate_on_generations_number = false,
-                                       int iterations = 1000
+                                       int iterations = 1000,
+                                       double mutate_probability = 0.05
     ) {
         std::vector<subgraph_with_score> population;
         auto goal = goal_factory(problem);
@@ -610,8 +611,8 @@ namespace mhe {
                     new_population = perform_one_point_crossover(selected, population.size()) :
                     new_population = perform_uniform_crossover(selected, population.size());
             mutation_type == bit_flip ?
-            perform_bit_flip_mutation(new_population) :
-            perform_bit_swap_mutation(new_population);
+            perform_bit_flip_mutation(new_population, mutate_probability) :
+            perform_bit_swap_mutation(new_population, mutate_probability);
             population = new_population;
 
             if (!terminate_on_generations_number) {
@@ -660,7 +661,7 @@ namespace mhe {
 
         int max_generations_without_finding_fitter = 0;
         if (!terminate_on_generations_number) {
-            max_generations_without_finding_fitter = count_nodes_in_graph(problem) * 20;
+            max_generations_without_finding_fitter = count_nodes_in_graph(problem) * 40;
         }
 
         auto get_best = [&](){
@@ -767,6 +768,10 @@ int main(int argc, char **argv) {
     solvers["solve_random"] = [&](auto problem, int iterations){return solve_random(problem, iterations);};
     solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
     solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
+    solvers["solve_genetic_algorithm_bit_swap_mutation_iterations_higher_mutation_prob"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_swap, true, iterations, 0.5);};
+    solvers["solve_genetic_algorithm_uniform_crossover_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::uniform, mutation_type::bit_flip, true, iterations);};
+    solvers["solve_genetic_algorithm_bit_swap_mutation_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::uniform, mutation_type::bit_flip, true, iterations);};
+    solvers["solve_genetic_algorithm_bit_swap_mutation"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::uniform, mutation_type::bit_flip, false);};
     solvers["solve_genetic_algorithm"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip);};
     solvers["solve_genetic_algorithm_elite"] = [&](auto problem, int iterations){return solve_genetic_algorithm_elit(problem, crossover_type::one_point, mutation_type::bit_flip);};
     solvers["solve_genetic_algorithm_elite_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm_elit(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
