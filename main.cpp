@@ -1,13 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <random>
-#include <functional>
 #include <algorithm>
 #include <list>
 #include <set>
 #include <fstream>
 #include <map>
 #include <chrono>
+#include <execution>
 
 std::ofstream logger("mhe.log");
 std::ofstream conv_log("conv.log");
@@ -96,8 +96,8 @@ namespace mhe {
         logger << "}" << std::endl;
     }
 
-    adjacency_matrix_t generate_random_graph(const int &num_nodes) {
-        int adjacency_matrix_size = num_nodes * (num_nodes - 1) / 2; // upper triangle, self connections skipped
+    adjacency_matrix_t generate_random_graph(const unsigned int &num_nodes) {
+        unsigned int adjacency_matrix_size = num_nodes * (num_nodes - 1) / 2; // upper triangle, self connections skipped
         adjacency_matrix_t adjacency_matrix(adjacency_matrix_size);
         std::uniform_int_distribution<char> dist(0, 1);
         for (auto &e : adjacency_matrix) e = dist(rdgen);
@@ -437,6 +437,15 @@ namespace mhe {
         }
     }
 
+    void evaluate_population_parallel(std::vector<subgraph_with_score>& population,
+                             const std::function<int(const subgraph_t)>& goal_function
+    ) {
+        std::for_each(std::execution::par, population.begin(), population.end(),
+                      [&goal_function](subgraph_with_score& individual) {
+                          individual.score = goal_function(individual.subgraph);
+                      });
+    }
+
     std::vector<subgraph_with_score> select_using_truncation_selection(const std::vector<subgraph_with_score>& population) {
         auto sorted_population = population;
         std::sort(sorted_population.begin(), sorted_population.end(),
@@ -573,7 +582,8 @@ namespace mhe {
                                        mutation_type mutation_type = bit_flip,
                                        bool terminate_on_generations_number = false,
                                        int iterations = 1000,
-                                       double mutate_probability = 0.05
+                                       double mutate_probability = 0.05,
+                                       bool run_in_parallel = false
     ) {
         std::vector<subgraph_with_score> population;
         auto goal = goal_factory(problem);
@@ -603,7 +613,9 @@ namespace mhe {
         int generations_without_fitter = 0;
         int best_score = 0;
         while (true) {
-            evaluate_population(population, fitness);
+            run_in_parallel ?
+                evaluate_population_parallel(population, fitness) :
+                evaluate_population(population, fitness);
             conv_log << get_best().score << std::endl;
             auto selected = tournament_selection(population);
             std::vector<subgraph_with_score> new_population;
@@ -616,7 +628,9 @@ namespace mhe {
             population = new_population;
 
             if (!terminate_on_generations_number) {
-                evaluate_population(population, fitness);
+                run_in_parallel ?
+                    evaluate_population_parallel(population, fitness) :
+                    evaluate_population(population, fitness);
                 if (get_best().score > best_score) {
                     best_score = get_best().score;
                     generations_without_fitter = 0;
@@ -633,7 +647,9 @@ namespace mhe {
                 }
             }
         }
-        evaluate_population(population, fitness);
+        run_in_parallel ?
+            evaluate_population_parallel(population, fitness) :
+            evaluate_population(population, fitness);
         conv_log << get_best().score << std::endl;
 
         return get_best().subgraph;
@@ -728,6 +744,12 @@ int main(int argc, char **argv) {
             0,
     };
 
+    adjacency_matrix_t big_graph = generate_random_graph(200);
+
+    logger << big_graph << std::endl;
+    generate_graphviz_output(big_graph);
+
+
     generate_graphviz_output(example_graph);
 
     std::vector<std::string> args(argv, argv+argc);
@@ -767,7 +789,8 @@ int main(int argc, char **argv) {
     solvers["solve_sim_annealing"] = [&](auto problem, int iterations){return solve_sim_annealing(problem, iterations, [](int i){return 1000 * std::pow(0.99, (double)i);});};
     solvers["solve_random"] = [&](auto problem, int iterations){return solve_random(problem, iterations);};
     solvers["solve_random_n"] = [&](auto problem, int iterations){return solve_random(problem, iterations, 0.1);};
-    solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations);};
+    solvers["solve_genetic_algorithm_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations, 0.05, false);};
+    solvers["solve_genetic_algorithm_iterations_parallel"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_flip, true, iterations, 0.05, true);};
     solvers["solve_genetic_algorithm_bit_swap_mutation_iterations_higher_mutation_prob"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::one_point, mutation_type::bit_swap, true, iterations, 0.5);};
     solvers["solve_genetic_algorithm_uniform_crossover_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::uniform, mutation_type::bit_flip, true, iterations);};
     solvers["solve_genetic_algorithm_bit_swap_mutation_iterations"] = [&](auto problem, int iterations){return solve_genetic_algorithm(problem, crossover_type::uniform, mutation_type::bit_flip, true, iterations);};
