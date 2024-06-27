@@ -58,12 +58,12 @@ namespace mhe {
 
     void generate_graphviz_output(const adjacency_matrix_t &adjacency_matrix) {
         int node_count = count_nodes_in_graph(adjacency_matrix);
-        logger << "graph {" << std::endl;
+        logger << "graph { ";
         for (int nodeY = 1; nodeY < node_count; nodeY++) {
             for (int nodeX = nodeY + 1; nodeX <= node_count; nodeX++) {
                 int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, adjacency_matrix);
                 if (adjacency_matrix[array_index] == 1) {
-                    logger << "    " << nodeY << " -- " << nodeX << ";" << std::endl;
+                    logger << " " << nodeY << " -- " << nodeX << ";";
                 }
             }
         }
@@ -71,27 +71,25 @@ namespace mhe {
     }
 
     void generate_graphviz_output(const adjacency_matrix_t &problem, const subgraph_t subgraph) {
-        std::vector<int> nodes_in_subgraph;
+        std::list<int> nodes_in_subgraph;
+        std::set<int> visited_nodes;
         for (int i = 1; i <= subgraph.size(); i++) {
             if (subgraph.at(i - 1) == 1) {
                 nodes_in_subgraph.push_back(i);
             }
         }
-        logger << "graph {" << std::endl;
+        logger << "graph { ";
         for (auto nodeY : nodes_in_subgraph) {
-            if (nodeY == nodes_in_subgraph.at(nodes_in_subgraph.size() - 1)) {
-                continue;
-            }
             for (auto nodeX : nodes_in_subgraph) {
-                if (nodeX == nodes_in_subgraph.at(0) || nodeY == nodeX) {
+                if (nodeY == nodeX || visited_nodes.find(nodeX) != visited_nodes.end()) {
                     continue;
                 }
                 int array_index = get_index_in_adjacency_matrix(nodeY, nodeX, problem);
                 if (problem[array_index] == 1) {
-                    logger << "    " << nodeY << " -- " << nodeX << ";" << std::endl;
+                    logger << " " << nodeY << " -- " << nodeX << ";";
                 }
             }
-
+            visited_nodes.insert(nodeY);
         }
         logger << "}" << std::endl;
     }
@@ -743,11 +741,6 @@ int main(int argc, char **argv) {
             1,1,
             0,
     };
-
-    adjacency_matrix_t big_graph = generate_random_graph(200);
-
-    logger << big_graph << std::endl;
-    generate_graphviz_output(big_graph);
 
 
     generate_graphviz_output(example_graph);
