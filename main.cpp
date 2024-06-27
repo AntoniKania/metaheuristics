@@ -775,6 +775,7 @@ int main(int argc, char **argv) {
     }
 
     std::map<std::string, std::function<subgraph_t(adjacency_matrix_t, int)>> solvers;
+    solvers["solve"] = [&](auto problem, int iterations){return solve(problem);};
     solvers["solve_hill_climbing"] = [&](auto problem, int iterations){return solve_hill_climbing(problem, iterations);};
     solvers["solve_tabu"] = [&](auto problem, int iterations){return solve_tabu_set(problem, iterations);};
     solvers["solve_tabu_list"] = [&](auto problem, int iterations){return solve_tabu_list(problem, iterations);};
